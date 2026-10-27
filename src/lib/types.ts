@@ -10,6 +10,7 @@ export type Item = {
   avg: number;
   ripoff: number;
   note?: string;
+  src?: string;
 };
 
 export type Store = {

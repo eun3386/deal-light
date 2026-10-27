@@ -2,18 +2,16 @@ import { categories } from "@/seed/categories";
 import { items } from "@/seed/items";
 import { stores } from "@/seed/stores";
 import { scams } from "@/seed/scams";
-import { supabase } from "./supabase";
-import type { Item, Location, Report, Review } from "./types";
+import type { Item, Report, Review } from "./types";
 
 // 정적 콘텐츠(카테고리/품목/매장/스캠)는 src/seed 에서 관리.
-// 유저 제보(reports)·리뷰(reviews)는 Supabase가 설정되면 DB, 아니면 localStorage.
+// 유저 제보(reports)·리뷰(reviews)는 /api (Upstash Redis)가 설정되면 서버, 아니면 localStorage.
 export const getCategories = () => categories;
 export const getItems = () => items;
 export const getItem = (id: string) => items.find((i) => i.id === id);
 export const getStores = () => stores;
 export const getStore = (id: string) => stores.find((s) => s.id === id);
 export const getScams = () => scams;
-export const isRemote = () => supabase !== null;
 
 const LS_REPORTS = "dl_reports";
 const LS_REVIEWS = "dl_reviews";
@@ -32,56 +30,50 @@ function lsAdd<T>(k: string, v: T) {
 }
 const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
 
-type ReportRow = { id: string; item_id: string; price: number; quantity: number; store_number: string | null; location: Location; created_at: string };
-type ReviewRow = { id: string; store_id: string; rating: number; content: string; created_at: string };
+/** 서버 저장소(API) 사용 가능하면 그 결과, 미설정(503)/네트워크 오류면 null → localStorage 대체 */
+async function remoteGet<T>(path: string): Promise<T[] | null> {
+  try {
+    const res = await fetch(path, { cache: "no-store" });
+    return res.ok ? ((await res.json()) as T[]) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** true: 서버에 저장됨, false: 서버 미사용(로컬로 저장해야 함). 입력 오류/제한은 throw */
+async function remotePost(path: string, body: unknown): Promise<boolean> {
+  let res: Response;
+  try {
+    res = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  } catch {
+    return false;
+  }
+  if (res.ok) return true;
+  if (res.status === 503) return false;
+  if (res.status === 429) throw new Error("너무 자주 제보했어요. 잠시 후 다시 시도해주세요.");
+  if (res.status === 422) throw new Error("시세와 너무 동떨어진 가격이에요. 가격·수량을 다시 확인해주세요.");
+  throw new Error("저장하지 못했어요. 입력값을 확인해주세요.");
+}
 
 export async function getReports(): Promise<Report[]> {
-  if (supabase) {
-    const { data } = await supabase.from("reports").select("*").order("created_at", { ascending: false }).limit(1000);
-    return ((data ?? []) as ReportRow[]).map((r) => ({
-      id: r.id, itemId: r.item_id, price: r.price, quantity: r.quantity,
-      storeNumber: r.store_number ?? undefined, location: r.location, createdAt: r.created_at,
-    }));
-  }
-  return lsGet<Report>(LS_REPORTS);
+  return (await remoteGet<Report>("/api/reports")) ?? lsGet<Report>(LS_REPORTS);
 }
 
 export async function addReport(input: Omit<Report, "id" | "createdAt">): Promise<void> {
-  if (supabase) {
-    await supabase.from("reports").insert({
-      item_id: input.itemId, price: input.price, quantity: input.quantity,
-      store_number: input.storeNumber ?? null, location: input.location,
-    });
-    return;
-  }
+  if (await remotePost("/api/reports", input)) return;
   lsAdd<Report>(LS_REPORTS, { ...input, id: uid(), createdAt: new Date().toISOString() });
 }
 
-export async function getReviews(storeId: string): Promise<Review[]> {
-  if (supabase) {
-    const { data } = await supabase.from("reviews").select("*").eq("store_id", storeId).order("created_at", { ascending: false });
-    return ((data ?? []) as ReviewRow[]).map((r) => ({
-      id: r.id, storeId: r.store_id, rating: r.rating, content: r.content, createdAt: r.created_at,
-    }));
-  }
-  return lsGet<Review>(LS_REVIEWS).filter((r) => r.storeId === storeId);
+export async function getAllReviews(): Promise<Review[]> {
+  return (await remoteGet<Review>("/api/reviews")) ?? lsGet<Review>(LS_REVIEWS);
 }
 
-export async function getAllReviews(): Promise<Review[]> {
-  if (supabase) {
-    const { data } = await supabase.from("reviews").select("*").limit(1000);
-    return ((data ?? []) as ReviewRow[]).map((r) => ({
-      id: r.id, storeId: r.store_id, rating: r.rating, content: r.content, createdAt: r.created_at,
-    }));
-  }
-  return lsGet<Review>(LS_REVIEWS);
+export async function getReviews(storeId: string): Promise<Review[]> {
+  return (await getAllReviews()).filter((r) => r.storeId === storeId);
 }
 
 export async function addReview(input: Omit<Review, "id" | "createdAt">): Promise<void> {
-  if (supabase) {
-    await supabase.from("reviews").insert({ store_id: input.storeId, rating: input.rating, content: input.content });
-    return;
-  }
+  if (await remotePost("/api/reviews", input)) return;
   lsAdd<Review>(LS_REVIEWS, { ...input, id: uid(), createdAt: new Date().toISOString() });
 }
 

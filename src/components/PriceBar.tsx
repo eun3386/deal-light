@@ -18,6 +18,9 @@ export default function PriceBar({ item, avg }: { item: Item; avg: number }) {
         <span className="text-right">호구 <b className="text-red-600">{man(item.ripoff)}~</b></span>
       </div>
       <div className="text-right text-[10px] text-slate-400">평균 {krw(avg)}</div>
+      <p className={`mt-1 text-[10px] ${item.src ? "text-slate-400" : "text-amber-600"}`}>
+        {item.src ? `근거: ${item.src}` : "⚠️ 검증 전 추정치 · 제보로 보정돼요"}
+      </p>
     </div>
   );
 }
