@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import Link from "next/link";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
 import ScamBanner from "@/components/ScamBanner";
@@ -16,6 +17,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <div className="mx-auto min-h-screen max-w-md bg-white pb-20 shadow-sm">
           <ScamBanner />
           {children}
+          <p className="pb-4 pt-2 text-center text-xs text-slate-400"><Link href="/feedback" className="underline">🐞 오류 신고 · 의견 보내기</Link></p>
         </div>
         <BottomNav />
       </body>
