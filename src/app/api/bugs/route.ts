@@ -4,6 +4,19 @@ import { allow, notifyDiscord, redis } from "@/lib/server";
 const KEY = "bugs";
 const str = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 
+// 알림에서 경로(/)만 보면 알아보기 어려우므로 화면 이름을 함께 보여준다
+function pageLabel(path: string) {
+  const name =
+    path === "/" ? "홈" :
+    path.startsWith("/prices/") ? `시세 상세 (${decodeURIComponent(path.slice(8))})` :
+    path.startsWith("/stores/") ? "매장 상세" :
+    path === "/stores" ? "착한매장" :
+    path === "/report" ? "가격 제보" :
+    path === "/scams" ? "사기주의" :
+    path === "/feedback" ? "오류 신고" : "";
+  return name ? `${name} (${path})` : path;
+}
+
 // 연락처가 들어오므로 공개 GET은 두지 않음. Upstash 콘솔(Data Browser)의 `bugs` 키에서 확인.
 export async function POST(req: Request) {
   if (!redis) return NextResponse.json({ error: "storage not configured" }, { status: 503 });
@@ -30,7 +43,7 @@ export async function POST(req: Request) {
       [
         `${kind === "bug" ? "🐞 오류 신고" : "💡 의견"}`,
         message,
-        row.page ? `화면: ${row.page}` : "",
+        row.page ? `직전 화면: ${pageLabel(row.page)}` : "",
         row.contact ? `연락처: ${row.contact}` : "",
       ].filter(Boolean).join("\n"),
     ),
