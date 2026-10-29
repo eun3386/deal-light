@@ -5,6 +5,7 @@ import { judge, gradeColor, type Verdict } from "@/lib/verdict";
 import { vnd, krw } from "@/lib/format";
 import type { Location } from "@/lib/types";
 import ShareButton from "@/components/ShareButton";
+import { track } from "@/lib/track";
 
 export default function Report() {
   const [itemId, setItemId] = useState("");
@@ -33,6 +34,7 @@ export default function Report() {
       const unit = p / q;
       await addReport({ itemId: item.id, price: p, quantity: q, storeNumber: store.trim() || undefined, location: loc });
       setResult({ v: judge(item, unit, avg), unit, avg });
+      track("report_submit");
     } catch (e) {
       setError(e instanceof Error ? e.message : "제보에 실패했어요.");
     }

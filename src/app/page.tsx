@@ -5,11 +5,17 @@ import { getCategories, getReports, getScams, searchItems, effectiveAvg, getItem
 import type { Report } from "@/lib/types";
 import PriceBar from "@/components/PriceBar";
 import ShareButton from "@/components/ShareButton";
+import { track } from "@/lib/track";
 
 export default function Home() {
   const [q, setQ] = useState("");
   const [reports, setReports] = useState<Report[]>([]);
   useEffect(() => { getReports().then(setReports); }, []);
+  useEffect(() => {
+    if (q.trim().length < 2) return;
+    const t = setTimeout(() => track("search"), 1000);
+    return () => clearTimeout(t);
+  }, [q]);
   const results = searchItems(q);
   const cats = getCategories();
   const items = getItems();

@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { track } from "@/lib/track";
 
 function legacyCopy(s: string) {
   const ta = document.createElement("textarea");
@@ -20,6 +21,7 @@ export default function ShareButton({ text = "다낭 한시장 갈 때 보려고
     setTimeout(() => setMsg(""), 2500);
   };
   async function share() {
+    track("share_click");
     const url = location.origin;
     const full = `${text}\n${url}`;
     if (navigator.share) {
