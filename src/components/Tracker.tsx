@@ -1,7 +1,7 @@
 "use client";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
-import { track } from "@/lib/track";
+import { setIgnored, track } from "@/lib/track";
 
 const PAGES: Record<string, string> = { "": "pv_home", prices: "pv_prices", report: "pv_report", scams: "pv_scams", stores: "pv_stores", feedback: "pv_feedback" };
 
@@ -9,6 +9,8 @@ const PAGES: Record<string, string> = { "": "pv_home", prices: "pv_prices", repo
 export default function Tracker() {
   const path = usePathname();
   useEffect(() => {
+    const flag = new URLSearchParams(location.search).get("ignore");
+    if (flag === "1" || flag === "0") setIgnored(flag === "1");
     const ev = PAGES[path.split("/")[1] ?? ""];
     if (ev) track(ev);
   }, [path]);

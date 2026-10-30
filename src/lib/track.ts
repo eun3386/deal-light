@@ -12,8 +12,17 @@ function vid(): string {
   }
 }
 
+/** ?ignore=1 로 한 번 접속한 브라우저(운영자 본인)는 집계에서 제외 */
+export function setIgnored(on: boolean) {
+  try {
+    if (on) localStorage.setItem("dl_ignore", "1");
+    else localStorage.removeItem("dl_ignore");
+  } catch {}
+}
+
 export function track(event: string) {
   try {
+    if (localStorage.getItem("dl_ignore")) return;
     fetch("/api/track", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
